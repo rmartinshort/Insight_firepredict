@@ -8,6 +8,39 @@ import numpy as np
 
 import Dataset_manipulation as DM
 
+
+def assemble_crimes_dataframe_oneperyear(datapath,SF_blocks,date_to_start='2007-01-01'):
+
+    crime = pd.read_csv(datapath+"Crime.csv",low_memory=False)
+    crime.dropna(subset=['Date','Location','Category'],inplace=True)
+    crime['Date'] = pd.to_datetime(crime['Date'])
+    crime = crime[crime['Date']>'2007-01-01']
+    crime = crime[~crime['Category'].str.contains('NON-CRIMINAL|SECONDARY CODES|RECOVERED VEHICLE')]
+
+    #Ensure that these are type int
+    crime['CrimeIsArson'] = crime['Category']=='ARSON'
+    crime['CrimeIsOther'] = crime['Category']!='ARSON'
+    crime['CrimeIsArson'] = crime['CrimeIsArson'].astype(int)
+    crime['CrimeIsOther'] = crime['CrimeIsOther'].astype(int)
+
+    crime['geometry'] = crime['Location'].apply(convert_to_point)
+    crime['Year'] = crime['Date'].apply(lambda x: int(x.year))
+
+    crime_geo = gpd.GeoDataFrame(crime,geometry='geometry')
+    crime_geo.crs = {'init': 'epsg:4326'}
+
+    # Merge crimes - find the block that contains each crime
+    intersections = gpd.sjoin(SF_blocks, crime_geo, how="left", op='contains')
+    intersections.replace(np.nan,0,inplace=True)
+    ncrimes_per_block = intersections[['GISJOIN','Year','CrimeIsArson','CrimeIsOther']].groupby(['GISJOIN','Year']).sum()
+    ncrimes_per_block.reset_index(inplace=True)
+    ncrimes_per_block['GISYEARJOIN'] = ncrimes_per_block.apply(generateGISyearjoin,axis=1)
+
+    return ncrimes_per_block
+
+
+
+
 def assemble_crimes_dataframe(datapath,year_to_predict,SF_blocks,date_to_start='2007-01-01'):
 
     crime = pd.read_csv(datapath+"Crime.csv",low_memory=False)

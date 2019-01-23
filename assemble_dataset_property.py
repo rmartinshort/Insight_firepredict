@@ -10,6 +10,94 @@ import numpy as np
 import Dataset_manipulation as DM
 
 
+def assemble_property_dataframe_oneperyear(datapath,SF_blocks,year_to_start=2007):
+
+    properties = pd.read_csv(datapath+'Property_Tax.csv',low_memory=False)
+
+    properties = properties.dropna(subset=['the_geom','Closed Roll Year'])
+
+    properties['Representing year'] = properties['Closed Roll Year'].apply(DM.add_year)
+
+    properties_by_year = properties.groupby("Representing year").count()
+
+    properties = properties[['Representing year','Assessed Land Value','Number of Units','Year Property Built','Use Code','Construction Type','the_geom','Lot Area']]
+    properties.dropna(inplace=True)
+
+    properties['geometry'] = properties['the_geom'].apply(DM.convert_to_point)
+
+    properties_geo = gpd.GeoDataFrame(properties,geometry='geometry')
+    properties_geo.crs = {'init': 'epsg:4326'}
+    # Merge properties - find the block that contains each property
+    intersections = gpd.sjoin(SF_blocks, properties_geo, how="left", op='contains')
+
+    intersections.dropna(inplace=True)
+
+    #Tidy up property build year distributions
+    intersections = intersections[(intersections['Year Property Built']<=2018) & (intersections['Year Property Built']>=1890)]
+    intersections = intersections[intersections['Assessed Land Value'] < intersections['Assessed Land Value'].quantile(.95)]
+
+    #Removed everything above 95 percetile of lot area, and lots with recorded area of 0
+    intersections = intersections[intersections['Lot Area'] < intersections['Lot Area'].quantile(.95)]
+    intersections = intersections[intersections['Lot Area'] > 0]
+
+    #properties_by_year = properties.groupby("Representing year").count()
+    #Determine the mean of these features across each census block
+    means = intersections[['GISJOIN','Representing year','Year Property Built',\
+    'Assessed Land Value','Number of Units','Lot Area']].groupby(['GISJOIN','Representing year']).mean()
+
+    means.reset_index(inplace=True)
+    Means_per_block_year = means
+    Means_per_block_year['Year'] = Means_per_block_year['Representing year']
+    Means_per_block_year.drop('Representing year',axis=1,inplace=True)
+    Means_per_block_year['GISYEARJOIN'] = Means_per_block_year.apply(DM.generateGISyearjoin,axis=1)
+
+    # Count the number of properties for each use code
+    counts_use = intersections[['GISJOIN','Representing year','Use Code','Construction Type']].groupby(['GISJOIN','Representing year','Use Code']).count()
+    counts_use = counts_use.unstack(2)
+    counts_use.columns = counts_use.columns.droplevel(0)
+    counts_use.columns = [str(cname) for cname in list(counts_use.columns)]
+    counts_use.fillna(0,inplace=True)
+    b = counts_use.div(counts_use.sum(axis=1), axis=0)
+    b.reset_index(inplace=True)
+
+    cols = list(b.columns)
+    b['Sum'] = b[cols[2:]].sum(axis=1)
+    b['UnkownUseType']=b['Sum'].apply(DM.fillunknown)
+
+    Use_per_block_year = b
+    Use_per_block_year['Year'] = Use_per_block_year['Representing year']
+    Use_per_block_year.drop(['Representing year','Sum'],axis=1,inplace=True)
+    Use_per_block_year['GISYEARJOIN'] = Use_per_block_year.apply(DM.generateGISyearjoin,axis=1)
+
+    #Count the number of property types per cell
+    counts_type = intersections[['GISJOIN','Representing year','Use Code','Construction Type']].groupby(['GISJOIN','Representing year','Construction Type']).count()
+    a = counts_type.unstack(2)
+    a.columns = a.columns.droplevel(0)
+    a.columns = [str(cname) for cname in list(a.columns)]
+    a.fillna(0,inplace=True)
+    b = a.div(a.sum(axis=1), axis=0)
+    b.reset_index(inplace=True)
+    print(b.columns)
+    #Sum over all the unknown types
+    b['S'] = b[['1','BRI','F','R','REI','ROW','S','STE','WOO']].sum(axis=1)
+    #Drop the other unknown types
+    b = b.drop(['1','BRI','F','R','REI','ROW','STE','WOO'],axis=1)
+
+    Type_per_block_year = b
+    Type_per_block_year['Year'] = Type_per_block_year['Representing year']
+    Type_per_block_year.drop('Representing year',axis=1,inplace=True)
+    Type_per_block_year['GISYEARJOIN'] = Type_per_block_year.apply(DM.generateGISyearjoin,axis=1)
+
+    ## Merge
+
+    d1 = Means_per_block_year.merge(Use_per_block_year,how='outer',on='GISYEARJOIN')
+    d2 = d1.merge(Type_per_block_year,how='outer',on='GISYEARJOIN')
+    d3 = d2.drop(['GISJOIN_x','Year_x','GISJOIN_y','Year_y'],axis=1)
+
+    All_properties = d3
+
+    return All_properties
+
 def setpropertyna(value):
 
     '''Set property built value to nan if it is unrealistic'''
@@ -137,8 +225,12 @@ if __name__ == "__main__":
 
     SF_blocks = gpd.read_file(census_path+'SF_block_2010.shp')
 
-    train  = assemble_property_dataframe('../datasets/property/',2018,SF_blocks)
+    #train  = assemble_property_dataframe('../datasets/property/',2018,SF_blocks)
 
-    print(train.head())
-    print(len(holdout))
-    print(len(train))
+    #print(train.head())
+    #print(len(holdout))
+    #print(len(train))
+
+    properties = assemble_property_dataframe_oneperyear('../datasets/property/',SF_blocks)
+    print(properties.head())
+    print(len(properties))
