@@ -49,7 +49,7 @@ def assemble_fires_dataframe_oneperyear(datapath,SF_blocks,SF_blocks_years,date_
     fires_dataset_cleaned['External_fire'] = fires_dataset_cleaned['Primary Situation']\
               .str.contains('|'.join(external_fire))
 
-    fires_dataset_cleaned['geometry'] = fires_dataset_cleaned['Location'].apply(convert_to_point)
+    fires_dataset_cleaned['geometry'] = fires_dataset_cleaned['Location'].apply(DM.convert_to_point)
 
     ### Generate the predictors dataset
 
@@ -71,6 +71,8 @@ def assemble_fires_dataframe_oneperyear(datapath,SF_blocks,SF_blocks_years,date_
     Fires_per_block['GISYEARJOIN'] = Fires_per_block.apply(DM.generateGISyearjoin,axis=1)
 
     Fires_per_block_year = SF_blocks_years.merge(Fires_per_block,how='outer',on='GISYEARJOIN')
+
+    Fires_per_block_year.replace(np.nan,0,inplace=True)
 
     return Fires_per_block_year
 

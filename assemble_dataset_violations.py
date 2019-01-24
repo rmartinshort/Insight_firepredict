@@ -6,6 +6,33 @@ import numpy as np
 
 import Dataset_manipulation as DM
 
+def assemble_violations_dataframe_oneperyear(datapath,SF_blocks,date_to_start='2007-01-01'):
+
+    fire_violations = pd.read_csv(datapath+"Fire_Violations.csv",low_memory=False)
+
+    fire_violations.dropna(subset=['Location'],inplace=True)
+    fire_violations['Violation Date'] = pd.to_datetime(fire_violations['Violation Date'])
+    fire_violations = fire_violations[fire_violations['Violation Date']>'2007-01-01']
+
+    fire_violations['geometry'] = fire_violations['Location'].apply(DM.convert_to_point)
+    fire_violations['Year'] = fire_violations['Violation Date'].apply(lambda x: int(x.year))
+
+    #Convert to geo dataframe
+    fire_violations_geo = gpd.GeoDataFrame(fire_violations,geometry='geometry')
+    fire_violations_geo.crs = {'init': 'epsg:4326'}
+
+    # Merge violations - find the block that contains each fire
+    intersections = gpd.sjoin(SF_blocks, fire_violations_geo, how="inner", op='contains')
+    intersections.replace(np.nan,0,inplace=True)
+    nviolations_per_block = intersections[['GISJOIN','Year','index_right']].groupby(['GISJOIN','Year']).count()
+    nviolations_per_block.reset_index(inplace=True)
+
+    nviolations_per_block['GISYEARJOIN'] = nviolations_per_block.apply(DM.generateGISyearjoin,axis=1)
+
+    nviolations_per_block.columns = ['GISJOIN','Year','Nviolations',"GISYEARJOIN"]
+
+    return nviolations_per_block
+
 def assemble_violations_dataframe(datapath,year_to_predict,SF_blocks,date_to_start='2007-01-01'):
 
     fire_violations = pd.read_csv(datapath+"Fire_Violations.csv",low_memory=False)
@@ -78,9 +105,13 @@ if __name__ == "__main__":
 
     SF_blocks = gpd.read_file(census_path+'SF_block_2010.shp')
 
-    train = assemble_violations_dataframe('../datasets/fire/',2018,SF_blocks)
+    #train = assemble_violations_dataframe('../datasets/fire/',2018,SF_blocks)
 
     #print(holdout.head())
-    print(train.head())
-    print(len(holdout))
-    print(len(train))
+    #print(train.head())
+    #print(len(holdout))
+    #print(len(train))
+
+    violations_blocks_years = assemble_violations_dataframe_oneperyear('../datasets/fire/',SF_blocks)
+
+    print(violations_blocks_years)

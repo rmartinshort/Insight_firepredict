@@ -23,7 +23,7 @@ def assemble_crimes_dataframe_oneperyear(datapath,SF_blocks,date_to_start='2007-
     crime['CrimeIsArson'] = crime['CrimeIsArson'].astype(int)
     crime['CrimeIsOther'] = crime['CrimeIsOther'].astype(int)
 
-    crime['geometry'] = crime['Location'].apply(convert_to_point)
+    crime['geometry'] = crime['Location'].apply(DM.convert_to_point)
     crime['Year'] = crime['Date'].apply(lambda x: int(x.year))
 
     crime_geo = gpd.GeoDataFrame(crime,geometry='geometry')
@@ -34,7 +34,7 @@ def assemble_crimes_dataframe_oneperyear(datapath,SF_blocks,date_to_start='2007-
     intersections.replace(np.nan,0,inplace=True)
     ncrimes_per_block = intersections[['GISJOIN','Year','CrimeIsArson','CrimeIsOther']].groupby(['GISJOIN','Year']).sum()
     ncrimes_per_block.reset_index(inplace=True)
-    ncrimes_per_block['GISYEARJOIN'] = ncrimes_per_block.apply(generateGISyearjoin,axis=1)
+    ncrimes_per_block['GISYEARJOIN'] = ncrimes_per_block.apply(DM.generateGISyearjoin,axis=1)
 
     return ncrimes_per_block
 
@@ -98,8 +98,7 @@ if __name__ == "__main__":
 
     SF_blocks = gpd.read_file(census_path+'SF_block_2010.shp')
 
-    train  = assemble_crimes_dataframe('../datasets/crime/',2018,SF_blocks)
+    train  = assemble_crimes_dataframe_oneperyear('../datasets/crime/',SF_blocks)
 
     print(train.head())
-    print(len(holdout))
     print(len(train))

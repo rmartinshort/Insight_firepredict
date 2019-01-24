@@ -7,6 +7,47 @@ import numpy as np
 import Dataset_manipulation as DM
 
 
+def assemble_inspections_dataframe_oneperyear(datapath,SF_blocks,date_to_start='2017-01-01'):
+
+    fire_inspections = pd.read_csv(datapath+"Fire_Inspections.csv",low_memory=False)
+    fire_inspections.dropna(subset=["Location","Inspection Start Date","Inspection End Date"],inplace=True)
+
+    fire_inspections['Inspection Start Date'] = pd.to_datetime(fire_inspections['Inspection Start Date'])
+
+    #Get only the data since 2007 (when we have building information)
+    fire_inspections = fire_inspections[fire_inspections['Inspection Start Date']>='2007-01-01']
+    #Get the number of complaints
+    fire_inspections['Was complaint'] = fire_inspections['Inspection Type Description']=='complaint inspection'
+
+    #Convert each location to a shapely point and fix date
+    fire_inspections['geometry'] = fire_inspections['Location'].apply(DM.convert_to_point)
+    fire_inspections['Year'] = fire_inspections['Inspection Start Date'].apply(lambda x: x.year)
+
+    #Convert to geo dataframe
+    fire_inspections_geo = gpd.GeoDataFrame(fire_inspections,geometry='geometry')
+    fire_inspections_geo.crs = {'init': 'epsg:4326'}
+
+    # Merge inspections - find the block that contains each inspection. Merge inner because we want to count (not sum)
+    intersections = gpd.sjoin(SF_blocks, fire_inspections_geo, how="inner", op='contains')
+    intersections.replace(np.nan,0,inplace=True)
+
+    ninspections_per_block = intersections[['GISJOIN','Inspection Number','Year']].groupby(['GISJOIN','Year']).count()
+    ninspections_per_block.reset_index(inplace=True)
+
+    ninspections_per_block['GISYEARJOIN'] = ninspections_per_block.apply(DM.generateGISyearjoin,axis=1)
+
+    ncomplaints_per_block = intersections[['GISJOIN','Was complaint','Year']].groupby(['GISJOIN','Year']).sum()
+    ncomplaints_per_block.reset_index(inplace=True)
+
+    ncomplaints_per_block['GISYEARJOIN'] = ncomplaints_per_block.apply(DM.generateGISyearjoin,axis=1)
+
+    Inspections_per_year_block = ncomplaints_per_block.merge(ninspections_per_block,on='GISYEARJOIN',how='outer')
+    Inspections_per_year_block.drop(['GISJOIN_x','Year_x','GISJOIN_y','Year_y'],axis=1,inplace=True)
+
+    return Inspections_per_year_block
+
+
+
 def assemble_inspections_dataframe(datapath,year_to_predict,SF_blocks,date_to_start='2007-01-01'):
 
     '''
@@ -110,9 +151,14 @@ if __name__ == "__main__":
 
     SF_blocks = gpd.read_file(census_path+'SF_block_2010.shp')
 
-    train  = assemble_inspections_dataframe('../datasets/fire/',2018,SF_blocks)
+    #train  = assemble_inspections_dataframe('../datasets/fire/',2018,SF_blocks)
 
     #print(holdout.head())
-    print(train.head())
-    print(len(holdout))
-    print(len(train))
+    #print(train.head())
+    #print(len(holdout))
+    #print(len(train))
+
+    yearblock = assemble_inspections_dataframe_oneperyear('../datasets/fire/',SF_blocks)
+
+    print(yearblock)
+    print(len(yearblock))

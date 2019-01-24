@@ -16,6 +16,7 @@ def assemble_property_dataframe_oneperyear(datapath,SF_blocks,year_to_start=2007
 
     properties = properties.dropna(subset=['the_geom','Closed Roll Year'])
 
+    #Representing year is one year ahead of the roll year
     properties['Representing year'] = properties['Closed Roll Year'].apply(DM.add_year)
 
     properties_by_year = properties.groupby("Representing year").count()
@@ -232,5 +233,6 @@ if __name__ == "__main__":
     #print(len(train))
 
     properties = assemble_property_dataframe_oneperyear('../datasets/property/',SF_blocks)
+    properties.to_csv('Properties_with_offset_year.csv',index=False)
     print(properties.head())
     print(len(properties))
