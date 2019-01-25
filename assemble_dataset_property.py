@@ -18,6 +18,7 @@ def assemble_property_dataframe_oneperyear(datapath,SF_blocks,year_to_start=2007
 
     #Representing year is one year ahead of the roll year
     properties['Representing year'] = properties['Closed Roll Year'].apply(DM.add_year)
+    #properties['Representing year'] = properties['Closed Roll Year']
 
     properties_by_year = properties.groupby("Representing year").count()
 

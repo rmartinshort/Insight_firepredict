@@ -9,7 +9,7 @@ from shapely.geometry import Polygon, Point
 
 import Dataset_manipulation as DM
 
-def assemble_fires_dataframe_oneperyear(datapath,SF_blocks,SF_blocks_years,date_to_start='2007-01-01'):
+def assemble_fires_dataframe_oneperyear(datapath,SF_blocks,date_to_start='2007-01-01'):
 
     '''
     This generates a dataframe where each row represents census cell in one year
@@ -69,6 +69,26 @@ def assemble_fires_dataframe_oneperyear(datapath,SF_blocks,SF_blocks_years,date_
     Fires_per_block.drop('Incident_Year',axis=1,inplace=True)
 
     Fires_per_block['GISYEARJOIN'] = Fires_per_block.apply(DM.generateGISyearjoin,axis=1)
+
+    #Generate temp SF_blocks_years DF
+
+    IDs = []
+    blocks = []
+    newyears = []
+    block_polys = list(SF_blocks['geometry'])
+    block_IDs = list(SF_blocks['GISJOIN'])
+
+    years = Fires_per_block['Year'].unique().astype(int)
+
+    for i in range(len(block_IDs)):
+        block = block_polys[i]
+        ID = str(block_IDs[i])
+        for year in years:
+            IDs.append(ID+str(year))
+            blocks.append(block)
+            newyears.append(year)
+
+    SF_blocks_years = gpd.GeoDataFrame({'GISYEARJOIN':IDs,'geometry':blocks,'IDyear':newyears})
 
     Fires_per_block_year = SF_blocks_years.merge(Fires_per_block,how='outer',on='GISYEARJOIN')
 
@@ -184,7 +204,8 @@ if __name__ == "__main__":
     #print(len(holdout))
     #print(len(train))
 
-    merged_fires = assemble_fires_dataframe_oneperyear('../datasets/fire/',2018,SF_blocks,SF_blocks_years)
+    merged_fires = assemble_fires_dataframe_oneperyear('../datasets/fire/',SF_blocks,SF_blocks_years)
+    merged_fires.drop('geometry',axis=1).to_csv('All_associated_fires_test.csv',index=False)
 
     print(merged_fires)
     print(len(merged_fires))

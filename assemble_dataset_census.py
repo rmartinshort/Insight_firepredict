@@ -70,13 +70,13 @@ def generate_yearblocks_from_GIS(census_path):
 
     if os.path.isfile(census_path+'SF_block_years_2010.shp'):
 
-        print("Found SF_block_2010.shp")
+        print("Found SF_block_years_2010.shp")
 
         SF_blocks_years = gpd.read_file(census_path+'SF_block_years_2010.shp')
 
     else:
 
-        print("Generating SF_block_2010.shp")
+        print("Generating SF_block_years_2010.shp")
 
         #load census dataset (this is large - need to cut just SF)
         CA_blocks = gpd.read_file(census_path+'CA_block_2010.shp')
