@@ -10,6 +10,52 @@ import numpy as np
 import Dataset_manipulation as DM
 
 
+def assemble_landuse(SF_blocks):
+
+    '''
+    Called within assemble_property_dataframe_oneperyear
+    Makes a dataframe containing information from the landuse dataset (note that this is static)
+    '''
+
+    landusepoint = gpd.read_file('/Users/rmartinshort/Documents/Insight/Project/datasets/landuse/geo_export_f48c6d46-b3af-4695-b4fd-9151e793f636.shp')
+
+    landusepoint['central_point'] = landusepoint['geometry'].apply(DM.convert_poly_to_point)
+
+    landusepoint = landusepoint.drop('geometry',axis=1).copy()
+
+    landusepoint['geometry'] = landusepoint['central_point']
+
+    landusepoint = landusepoint[(landusepoint['yrbuilt']<=2018) & (landusepoint['yrbuilt']>=1850)]
+
+    #Find the census blocks that can be associated with this data
+    censusblocks_containing_blocks = gpd.sjoin(SF_blocks,landusepoint,how='left',op='contains')
+
+    censusblocks_containing_blocks_grouped = censusblocks_containing_blocks[['GISJOIN','geometry','index_right']].groupby('GISJOIN').count()
+
+    #List of GISJOIN blocks for which we have data
+    GISJOINs = list(censusblocks_containing_blocks_grouped[censusblocks_containing_blocks_grouped['index_right']>0].index)
+
+    Censusdata = censusblocks_containing_blocks[censusblocks_containing_blocks['GISJOIN'].isin(GISJOINs)]
+
+    Censusdata = Censusdata[['GISJOIN','block_num','landuse','resunits','retail','yrbuilt']]
+
+    minyearperblock = Censusdata[['GISJOIN','yrbuilt']].groupby('GISJOIN').min().reset_index()
+    minyearperblock.columns = ['GISJOIN','minyr']
+    maxyearperblock = Censusdata[['GISJOIN','yrbuilt']].groupby('GISJOIN').max().reset_index()
+    maxyearperblock.columns = ['GISJOIN','maxyr']
+    rangeyearperblock = Censusdata[['GISJOIN','yrbuilt']].groupby('GISJOIN').std().reset_index()
+    rangeyearperblock.columns = ['GISJOIN','varyr']
+    nresunits = Censusdata[['GISJOIN','resunits']].groupby('GISJOIN').count().reset_index()
+
+    a = censusblocks_containing_blocks_grouped.merge(minyearperblock,on='GISJOIN',how='left')
+    b = a.merge(maxyearperblock,on='GISJOIN',how='left')
+    c = b.merge(rangeyearperblock,on='GISJOIN',how='left')
+    d = c.merge(nresunits,on='GISJOIN',how='left')
+    d.dropna(inplace=True)
+
+    return d
+
+
 def assemble_property_dataframe_oneperyear(datapath,SF_blocks,year_to_start=2007):
 
     properties = pd.read_csv(datapath+'Property_Tax.csv',low_memory=False)
@@ -94,11 +140,13 @@ def assemble_property_dataframe_oneperyear(datapath,SF_blocks,year_to_start=2007
 
     d1 = Means_per_block_year.merge(Use_per_block_year,how='outer',on='GISYEARJOIN')
     d2 = d1.merge(Type_per_block_year,how='outer',on='GISYEARJOIN')
-    d3 = d2.drop(['GISJOIN_x','Year_x','GISJOIN_y','Year_y'],axis=1)
+    All_properties = d2.drop(['GISJOIN_x','Year_x','GISJOIN_y','Year_y'],axis=1)
+    #All_properties.rename(index=str, columns={"GISJOIN_x": "GISJOIN"})
 
-    All_properties = d3
+    landuse = assemble_landuse(SF_blocks)
+    landuse.to_csv("landuse_on_GISJOIN.csv",index=False)
 
-    return All_properties
+    return All_properties, landuse
 
 def setpropertyna(value):
 
@@ -233,7 +281,7 @@ if __name__ == "__main__":
     #print(len(holdout))
     #print(len(train))
 
-    properties = assemble_property_dataframe_oneperyear('../datasets/property/',SF_blocks)
-    properties.to_csv('Properties_with_offset_year.csv',index=False)
+    properties,landuse = assemble_property_dataframe_oneperyear('../datasets/property/',SF_blocks)
+    #properties.to_csv('Properties_with_offset_year.csv',index=False)
     print(properties.head())
     print(len(properties))

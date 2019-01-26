@@ -76,7 +76,7 @@ def assemble_dataframe_yearjoin():
 
     print("Assembling properties")
 
-    Properties_per_yearblock = ADProperty.assemble_property_dataframe_oneperyear(property_datapath,SF_blocks)
+    Properties_per_yearblock, landuse = ADProperty.assemble_property_dataframe_oneperyear(property_datapath,SF_blocks)
 
     e = d.merge(Properties_per_yearblock,how='left',on='GISYEARJOIN')
 
@@ -115,6 +115,23 @@ def assemble_dataframe_yearjoin():
     #allfires_with_pred = Fires_per_block_year.merge(fires_to_predict,on='GISYEARJOIN',how='left')
 
     ALLDATA2 = ALLDATA.merge(fires_to_predict,on='GISYEARJOIN',how='left')
+
+    # #merge landuse data (since we have GISJOIN)
+    #
+    # ALLDATA2 = ALLDATA2.merge(landuse,on='GISJOIN',how='left')
+    #
+    # allblocks = []
+    # #This will be all the blocks that appear in the landuse dataset
+    # represented_blocks = list(ALLDATA2['GISJOIN'].unique())
+    #
+    # #For every block, extract a blockseries and fill nans accordingly
+    # for block in represented_blocks:
+    #
+    #     blockseries = SF_yearblocks_allprop[SF_yearblocks_allprop['GISJOIN']==block]
+    #     blockseries.fillna(blockseries.mean)
+    #     allblocks.append(blockseries)
+    #
+    # SF_yearblocks_imputed = pd.concat(allblocks)}
 
     print(ALLDATA2.columns)
 

@@ -6,6 +6,10 @@ from shapely.geometry import Point, Polygon
 import geopandas as gpd
 
 
+def convert_poly_to_point(poly):
+
+    return poly.centroid
+
 def convert_to_point(coords):
 
     coords = coords.split(',')
