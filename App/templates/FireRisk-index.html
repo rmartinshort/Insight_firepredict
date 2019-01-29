@@ -1,0 +1,31 @@
+{% extends "FireRisk-base.html"%}
+{% block content %}
+
+
+<div class="jumbotron jumbotron-fluid">
+
+  <h2 class="display-4">Use the dropdown to select a year and compute risk map</h2>
+
+  <hr class="my-4">
+
+  <h3>For example selecting 'predict 2019' will display a fire risk map for the upcoming year <h3>
+
+  <hr class="my-4">
+
+  <p> For earlier years, the page will display a map colored by risk, in addition to fires that actually occured in that year<p>
+
+  <hr class="my-4">
+
+<div class="list-group">
+  <a href="#" class="list-group-item list-group-item-action active">
+    Select year
+  </a>
+  <a href="{{url_for('displayamap',firetype='structure',yearval='2019')}}" class="list-group-item list-group-item-action">Predict 2019 fire risk</a>
+  <a href="{{url_for('displayamap',firetype='structure',yearval='2018')}}" class="list-group-item list-group-item-action">Predict 2018 fire risk</a>
+  <a href="#" class="list-group-item list-group-item-action disabled" tabindex="-1" aria-disabled="true"></a>
+</div>
+
+</div>
+
+
+{% endblock %}
