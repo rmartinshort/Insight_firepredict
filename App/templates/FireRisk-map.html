@@ -20,6 +20,14 @@
     <p> The map shows predicted hazard zones for {{year}} in addition to the locations of fires that actually happened </p> 
   {% endif %}
 
+  {% if address_flag == 1 %}
+    {% if high_risk == 1 %}
+    <p> You entered {{address}}, which has a risk score of {{riskscore}}. This is a high risk area! </p> 
+    {% elif high_risk == 0 %}
+    <p> You entered {{address}}, which has a risk score of {{riskscore}} </p> 
+    {% endif %}
+  {% endif %}
+
   <hr class="my-4">
 
   <a type="button" href="{{url_for('displayamap',yearval=year, firetype='structure')}}" class="btn btn-outline-dark">Structural fires</a>

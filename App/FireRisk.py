@@ -21,7 +21,7 @@ geolocator = Nominatim(user_agent="FirescapeSF")
 SF_blocks = gpd.read_file('models/SFblocks/SF_block_years_2010.shp')
 
 
-def generate_hazard_map_html(model,X,mapdata,html_map_name,plat,plon):
+def generate_hazard_map_html(model,X,mapdata,html_map_name,plat,plon,firetype='structure'):
 
     '''
     Generate new hazard map as a html file
@@ -38,7 +38,9 @@ def generate_hazard_map_html(model,X,mapdata,html_map_name,plat,plon):
     mapgeom = mapdata[mapdata['GISYEARJOI'].isin(GISCELLS)]
     fires_holdout_predict = model.predict_proba(X)
 
-    riskmap = gpd.GeoDataFrame({'geometry':mapgeom['geometry'],'fire_prob':fires_holdout_predict[:,1]})
+    fscore = 10.0*fires_holdout_predict[:,1]
+
+    riskmap = gpd.GeoDataFrame({'geometry':mapgeom['geometry'],'fire_prob':fscore})
 
     #Find out which polygon contains a point of interest
     mypoint = Point(plon,plat)
@@ -51,11 +53,28 @@ def generate_hazard_map_html(model,X,mapdata,html_map_name,plat,plon):
     #prob of fire at the entered address
     prob = riskmap['fire_prob'].values[i]
 
+    if firetype == 'structure':
+        if prob > 0.954:
+            high_risk = 1
+        else:
+            high_risk = 0
+
+    elif firetype == 'vehicle':
+        if prob > 0.779:
+            high_risk = 1
+        else:
+            high_risk = 0
+
+    elif firetype == 'external':
+        if prob > 1.80:
+            high_risk = 1
+        else:
+            high_risk = 0
+
+
     riskmap['BLOCKID'] = np.arange(len(riskmap))
     gdf_wgs84 = riskmap.copy()
     gdf_wgs84.crs = {'init': 'epsg:4326', 'no_defs': True}
-
-    thresh_scale = split_six(riskmap['fire_prob'])
 
     m = folium.Map(location=[37.76, -122.42],zoom_start=13,
                tiles="CartoDB positron",
@@ -69,12 +88,12 @@ def generate_hazard_map_html(model,X,mapdata,html_map_name,plat,plon):
              fill_color='OrRd',
              line_opacity=0.1,
              highlight=True,
-             legend_name='Probability of fire',
-             legend_scale=thresh_scale)
+             legend_name='Fire risk score',
+             )
 
     m.add_child(folium.LatLngPopup())
 
-    popup = 'Prob: %.3f' %prob
+    popup = 'Fire risk score at your location: %.2f' %prob
     folium.Marker([mypoint.y,mypoint.x], 
              popup=popup,
              icon=folium.Icon(color='white', 
@@ -84,6 +103,8 @@ def generate_hazard_map_html(model,X,mapdata,html_map_name,plat,plon):
                               prefix='fa')).add_to(m)
 
     m.save('templates/'+html_map_name)
+
+    return prob, high_risk
 
 
 def withinSF(lon,lat):
@@ -145,10 +166,14 @@ def displaymapwithaddress(firetype='structure',yearval='2019'):
     data = pd.read_csv(datatoload)
 
     #Generate the hazard map
-    generate_hazard_map_html(model,data,SF_blocks,foliummap,plat=loclat,plon=loclon)
+    prob, high_risk = generate_hazard_map_html(model,data,SF_blocks,foliummap,plat=loclat,plon=loclon)
+
+    #convert to string of reasonable accuracy 
+    prob = '%.2f' %prob
 
 
-    return render_template(rendertemp,year=yearval,firetype=firetype,mapname=foliummap)
+    return render_template(rendertemp,year=yearval,firetype=firetype,
+        mapname=foliummap,high_risk=high_risk,address_flag=1,address=address,riskscore=prob)
 
 
 
