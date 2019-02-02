@@ -1,0 +1,33 @@
+{% extends "FireRisk-base.html"%}
+{% block content %}
+
+
+<div class="jumbotron jumbotron-fluid">
+
+  <h1> FirescapeSF </h1>
+  <h2> Predicting urban fire risk in the city </h2>
+
+  <hr class="my-4">
+
+  <h3> Use the dropdown to select a year and compute risk map</h3>
+
+  <hr class="my-4">
+
+  <p> For example, selecting 'predict 2019' will display a fire risk map for the upcoming year, which is built using a model trained on data from previous years. For years earlier than 2019 the page will display a map of predicted risk in addition to the locations of fires that actually occured in that year. Enter an address to learn about the risk in your city block.<p>
+
+  <hr class="my-4">
+
+<div class="list-group">
+  <a href="#" class="list-group-item list-group-item-action active">
+  <h3> Select year </h3>
+  </a>
+  <a href="{{url_for('displayamap',firetype='structure',yearval='2019')}}" class="list-group-item list-group-item-action list-group-item-dark">Predict 2019 fire risk</a>
+  <a href="{{url_for('displayamap',firetype='structure',yearval='2018')}}" class="list-group-item list-group-item-action list-group-item-dark">Predict 2018 fire risk</a>
+  <a href="#" class="list-group-item disabled list-group-item-action list-group-item-dark">Predict 2017 fire risk</a>
+  <a href="#" class="list-group-item list-group-item-action disabled" tabindex="-1" aria-disabled="true"></a>
+</div>
+
+</div>
+
+
+{% endblock %}
