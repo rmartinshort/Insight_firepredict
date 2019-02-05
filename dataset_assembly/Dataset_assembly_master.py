@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 #RMS 2019
 
+#Contains functions needed to assemble the datasets needed for modelling SF fire
+#prediction. The user needs to enter paths to the relevant datasets
+
 ###
 # Master file for dataset assembly
 
